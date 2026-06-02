@@ -93,6 +93,44 @@ namespace pozdeev {
     return *this;
   }
 
+  template< class Key, class Value >
+  HashIterator< Key, Value > HashIterator< Key, Value >::operator++(int)
+  {
+    HashIterator< Key, Value > temp = *this;
+    ++(*this);
+    return temp;
+  }
+
+  template< class Key, class Value >
+  bool HashIterator< Key, Value >::operator==(const HashIterator< Key, Value > & other) const
+  {
+    return current_ == other.current_;
+  }
+
+  template< class Key, class Value >
+  bool HashIterator< Key, Value >::operator!=(const HashIterator< Key, Value > & other) const
+  {
+    return current_ != other.current_;
+  }
+
+  template< class Key, class Value >
+  Value & HashIterator< Key, Value >::operator*()
+  {
+    return current_->value_;
+  }
+
+  template< class Key, class Value >
+  Value * HashIterator< Key, Value >::operator->()
+  {
+    return &(current_->value_);
+  }
+
+  template< class Key, class Value >
+  const Key & HashIterator< Key, Value >::getKey() const
+  {
+    return current_->key_;
+  }
+
 }
 
 #endif
