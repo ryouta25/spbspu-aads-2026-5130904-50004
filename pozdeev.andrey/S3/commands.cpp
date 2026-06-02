@@ -252,6 +252,115 @@ namespace pozdeev {
     allGraphs.add(graphName, g);
   }
 
+  void executeMerge(GraphTable & allGraphs, std::istream & in, std::ostream & out)
+  {
+    std::string newGraph, oldG1, oldG2;
+    in >> newGraph >> oldG1 >> oldG2;
+
+    if (allGraphs.has(newGraph) || !allGraphs.has(oldG1) || !allGraphs.has(oldG2)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Graph g;
+    Graph & g1 = allGraphs.get(oldG1);
+    Graph & g2 = allGraphs.get(oldG2);
+
+    const auto & verts1 = g1.getVertexes();
+    for (size_t i = 0; i < verts1.size(); ++i) {
+      g.addVertex(verts1[i]);
+    }
+
+    const auto & verts2 = g2.getVertexes();
+    for (size_t i = 0; i < verts2.size(); ++i) {
+      g.addVertex(verts2[i]);
+    }
+
+    auto & edges1 = g1.getEdges();
+    for (auto it = edges1.begin(); it != edges1.end(); ++it) {
+      const auto & w = *it;
+      for (size_t i = 0; i < w.size(); ++i) {
+        g.addEdge(it.getKey().first, it.getKey().second, w[i]);
+      }
+    }
+
+    auto & edges2 = g2.getEdges();
+    for (auto it = edges2.begin(); it != edges2.end(); ++it) {
+      const auto & w = *it;
+      for (size_t i = 0; i < w.size(); ++i) {
+        g.addEdge(it.getKey().first, it.getKey().second, w[i]);
+      }
+    }
+
+    allGraphs.add(newGraph, g);
+  }
+
+  void executeExtract(GraphTable & allGraphs, std::istream & in, std::ostream & out)
+  {
+    std::string newGraph, oldGraph;
+    size_t countK;
+    in >> newGraph >> oldGraph >> countK;
+
+    Vector< std::string > extrVerts;
+    for (size_t i = 0; i < countK; ++i) {
+      std::string v;
+      in >> v;
+      extrVerts.pushBack(v);
+    }
+
+    if (allGraphs.has(newGraph) || !allGraphs.has(oldGraph)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Graph & oldG = allGraphs.get(oldGraph);
+    const auto & oldVerts = oldG.getVertexes();
+
+    for (size_t i = 0; i < extrVerts.size(); ++i) {
+      bool found = false;
+      for (size_t j = 0; j < oldVerts.size(); ++j) {
+        if (oldVerts[j] == extrVerts[i]) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        out << "<INVALID COMMAND>\n";
+        return;
+      }
+    }
+
+    Graph g;
+    for (size_t i = 0; i < extrVerts.size(); ++i) {
+      g.addVertex(extrVerts[i]);
+    }
+
+    auto & oldEdges = oldG.getEdges();
+    for (auto it = oldEdges.begin(); it != oldEdges.end(); ++it) {
+      const auto & key = it.getKey();
+      bool hasSrc = false;
+      bool hasDst = false;
+
+      for (size_t i = 0; i < extrVerts.size(); ++i) {
+        if (extrVerts[i] == key.first) {
+          hasSrc = true;
+        }
+        if (extrVerts[i] == key.second) {
+          hasDst = true;
+        }
+      }
+
+      if (hasSrc && hasDst) {
+        const auto & w = *it;
+        for (size_t i = 0; i < w.size(); ++i) {
+          g.addEdge(key.first, key.second, w[i]);
+        }
+      }
+    }
+
+    allGraphs.add(newGraph, g);
+  }
+
   void processCommands(std::istream & in, std::ostream & out, GraphTable & allGraphs)
   {
     std::string cmd;
@@ -276,6 +385,10 @@ namespace pozdeev {
         executeCut(allGraphs, in, out);
       } else if (cmd == "create") {
         executeCreate(allGraphs, in, out);
+      } else if (cmd == "merge") {
+        executeMerge(allGraphs, in, out);
+      } else if (cmd == "extract") {
+        executeExtract(allGraphs, in, out);
       } else {
         out << "<INVALID COMMAND>\n";
       }
