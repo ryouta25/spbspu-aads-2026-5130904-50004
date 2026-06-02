@@ -152,6 +152,106 @@ namespace pozdeev {
     }
   }
 
+  void executeBind(GraphTable & allGraphs, std::istream & in, std::ostream & out)
+  {
+    std::string graphName, v1, v2;
+    unsigned int weight;
+    in >> graphName >> v1 >> v2 >> weight;
+
+    if (!allGraphs.has(graphName)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Graph & g = allGraphs.get(graphName);
+    g.addEdge(v1, v2, weight);
+  }
+
+  void executeCut(GraphTable & allGraphs, std::istream & in, std::ostream & out)
+  {
+    std::string graphName, v1, v2;
+    unsigned int weight;
+    in >> graphName >> v1 >> v2 >> weight;
+
+    if (!allGraphs.has(graphName)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Graph & g = allGraphs.get(graphName);
+    const Vector< std::string > & verts = g.getVertexes();
+    bool hasV1 = false;
+    bool hasV2 = false;
+
+    for (size_t i = 0; i < verts.size(); ++i) {
+      if (verts[i] == v1) {
+        hasV1 = true;
+      }
+      if (verts[i] == v2) {
+        hasV2 = true;
+      }
+    }
+
+    if (!hasV1 || !hasV2) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    std::pair< std::string, std::string > edgeKey(v1, v2);
+    auto & edges = g.getEdges();
+
+    if (!edges.has(edgeKey)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Vector< unsigned int > & weights = edges.get(edgeKey);
+    bool weightFound = false;
+
+    for (size_t i = 0; i < weights.size(); ++i) {
+      if (weights[i] == weight) {
+        weights.erase(i);
+        weightFound = true;
+        break;
+      }
+    }
+
+    if (!weightFound) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    if (weights.size() == 0) {
+      edges.drop(edgeKey);
+    }
+  }
+
+  void executeCreate(GraphTable & allGraphs, std::istream & in, std::ostream & out)
+  {
+    std::string graphName;
+    size_t countK;
+    in >> graphName >> countK;
+
+    Vector< std::string > newVerts;
+    for (size_t i = 0; i < countK; ++i) {
+      std::string v;
+      in >> v;
+      newVerts.pushBack(v);
+    }
+
+    if (allGraphs.has(graphName)) {
+      out << "<INVALID COMMAND>\n";
+      return;
+    }
+
+    Graph g;
+    for (size_t i = 0; i < newVerts.size(); ++i) {
+      g.addVertex(newVerts[i]);
+    }
+
+    allGraphs.add(graphName, g);
+  }
+
   void processCommands(std::istream & in, std::ostream & out, GraphTable & allGraphs)
   {
     std::string cmd;
@@ -170,6 +270,12 @@ namespace pozdeev {
         std::string graphName, vertexName;
         in >> graphName >> vertexName;
         printInbound(allGraphs, graphName, vertexName, out);
+      } else if (cmd == "bind") {
+        executeBind(allGraphs, in, out);
+      } else if (cmd == "cut") {
+        executeCut(allGraphs, in, out);
+      } else if (cmd == "create") {
+        executeCreate(allGraphs, in, out);
       } else {
         out << "<INVALID COMMAND>\n";
       }
