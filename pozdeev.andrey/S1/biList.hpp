@@ -4,365 +4,499 @@
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
+#include <iterator>
 
-namespace pozdeev {
+namespace pozdeev
+{
+  template< class T >
+  class BiList;
 
-template<class T>
-class BiList;
+  template< class T >
+  class Node
+  {
+    friend class BiList< T >;
 
-template<class T>
-class Node {
-public:
-  T val_;
-  Node<T>* prev_;
-  Node<T>* next_;
+  public:
+    T val_;
+    Node< T >* prev_;
+    Node< T >* next_;
 
-  Node(const T& value) :
+    explicit Node(const T& value);
+    explicit Node(T&& value);
+    Node(const T& value, Node* p, Node* n);
+    Node(T&& value, Node* p, Node* n);
+  };
+
+  template< class T >
+  class LIter : public std::iterator< std::bidirectional_iterator_tag, T >
+  {
+    friend class BiList< T >;
+
+  public:
+    LIter() noexcept;
+    LIter(const LIter& other) noexcept = default;
+    LIter(LIter&& other) noexcept = default;
+    ~LIter() = default;
+
+    LIter& operator=(const LIter& other) noexcept = default;
+    LIter& operator=(LIter&& other) noexcept = default;
+
+    bool operator==(const LIter& other) const noexcept;
+    bool operator!=(const LIter& other) const noexcept;
+    T& operator*() const;
+    T* operator->() const;
+
+    LIter& operator++() noexcept;
+    LIter operator++(int) noexcept;
+    LIter& operator--() noexcept;
+    LIter operator--(int) noexcept;
+
+  private:
+    Node< T >* cur_;
+    Node< T >* tail_;
+
+    LIter(Node< T >* node, Node< T >* listTail) noexcept;
+  };
+
+  template< class T >
+  class LCIter : public std::iterator< std::bidirectional_iterator_tag, T >
+  {
+    friend class BiList< T >;
+
+  public:
+    LCIter() noexcept;
+    LCIter(const LIter< T >& other) noexcept;
+    LCIter(const LCIter& other) noexcept = default;
+    LCIter(LCIter&& other) noexcept = default;
+    ~LCIter() = default;
+
+    LCIter& operator=(const LCIter& other) noexcept = default;
+    LCIter& operator=(LCIter&& other) noexcept = default;
+
+    bool operator==(const LCIter& other) const noexcept;
+    bool operator!=(const LCIter& other) const noexcept;
+    const T& operator*() const;
+    const T* operator->() const;
+
+    LCIter& operator++() noexcept;
+    LCIter operator++(int) noexcept;
+    LCIter& operator--() noexcept;
+    LCIter operator--(int) noexcept;
+
+  private:
+    const Node< T >* cur_;
+    const Node< T >* tail_;
+
+    LCIter(const Node< T >* node, const Node< T >* listTail) noexcept;
+  };
+
+  template< class T >
+  class BiList
+  {
+  public:
+    BiList() noexcept;
+    BiList(const BiList& other);
+    BiList(BiList&& other) noexcept;
+    ~BiList();
+
+    BiList& operator=(const BiList& other);
+    BiList& operator=(BiList&& other) noexcept;
+
+    void swap(BiList& other) noexcept;
+
+    bool isEmpty() const noexcept;
+    size_t getSize() const noexcept;
+
+    T& front();
+    const T& front() const;
+    T& back();
+    const T& back() const;
+
+    LIter< T > begin() noexcept;
+    LCIter< T > cbegin() const noexcept;
+    LIter< T > end() noexcept;
+    LCIter< T > cend() const noexcept;
+
+    void pushFront(const T& value);
+    void pushFront(T&& value);
+    void pushBack(const T& value);
+    void pushBack(T&& value);
+    LIter< T > insert(LIter< T > pos, const T& value);
+
+    void popFront();
+    void popBack();
+    LIter< T > erase(LIter< T > pos);
+    void clear() noexcept;
+
+  private:
+    Node< T >* head_;
+    Node< T >* tail_;
+    size_t size_;
+  };
+
+  template< class T >
+  Node< T >::Node(const T& value) :
     val_(value),
     prev_(nullptr),
     next_(nullptr)
   {
   }
 
-  Node(T&& value) :
+  template< class T >
+  Node< T >::Node(T&& value) :
     val_(std::move(value)),
     prev_(nullptr),
     next_(nullptr)
   {
   }
 
-  Node(const T& value, Node* p, Node* n) :
+  template< class T >
+  Node< T >::Node(const T& value, Node* p, Node* n) :
     val_(value),
     prev_(p),
     next_(n)
   {
   }
 
-  Node(T&& value, Node* p, Node* n) :
+  template< class T >
+  Node< T >::Node(T&& value, Node* p, Node* n) :
     val_(std::move(value)),
     prev_(p),
     next_(n)
   {
   }
-};
 
-template<class T>
-class LIter {
-  friend class BiList<T>;
-
-public:
-  LIter() noexcept :
+  template< class T >
+  LIter< T >::LIter() noexcept :
     cur_(nullptr),
     tail_(nullptr)
   {
   }
 
-  LIter(const LIter& other) noexcept = default;
-  LIter(LIter&& other) noexcept = default;
-  ~LIter() = default;
-
-  LIter& operator=(const LIter& other) noexcept = default;
-  LIter& operator=(LIter&& other) noexcept = default;
-
-  bool operator==(const LIter& other) const noexcept
-  {
-    return cur_ == other.cur_;
-  }
-
-  bool operator!=(const LIter& other) const noexcept
-  {
-    return cur_ != other.cur_;
-  }
-
-  T& operator*() const
-  {
-    return cur_->val_;
-  }
-
-  T* operator->() const
-  {
-    return &(cur_->val_);
-  }
-
-  LIter& operator++() noexcept
-  {
-    if (cur_ != nullptr) {
-      cur_ = cur_->next_;
-    }
-    return *this;
-  }
-
-  LIter operator++(int) noexcept
-  {
-    LIter tmp(*this);
-    if (cur_ != nullptr) {
-      cur_ = cur_->next_;
-    }
-    return tmp;
-  }
-
-  LIter& operator--() noexcept
-  {
-    if (cur_ == nullptr) {
-      cur_ = tail_;
-    } else {
-      cur_ = cur_->prev_;
-    }
-    return *this;
-  }
-
-  LIter operator--(int) noexcept
-  {
-    LIter tmp(*this);
-    if (cur_ == nullptr) {
-      cur_ = tail_;
-    } else {
-      cur_ = cur_->prev_;
-    }
-    return tmp;
-  }
-
-private:
-  Node<T>* cur_;
-  Node<T>* tail_;
-
-  LIter(Node<T>* node, Node<T>* listTail) noexcept :
+  template< class T >
+  LIter< T >::LIter(Node< T >* node, Node< T >* listTail) noexcept :
     cur_(node),
     tail_(listTail)
   {
   }
-};
 
-template<class T>
-class LCIter {
-  friend class BiList<T>;
+  template< class T >
+  bool LIter< T >::operator==(const LIter& other) const noexcept
+  {
+    return cur_ == other.cur_;
+  }
 
-public:
-  LCIter() noexcept :
+  template< class T >
+  bool LIter< T >::operator!=(const LIter& other) const noexcept
+  {
+    return cur_ != other.cur_;
+  }
+
+  template< class T >
+  T& LIter< T >::operator*() const
+  {
+    return cur_->val_;
+  }
+
+  template< class T >
+  T* LIter< T >::operator->() const
+  {
+    return &(cur_->val_);
+  }
+
+  template< class T >
+  LIter< T >& LIter< T >::operator++() noexcept
+  {
+    if (cur_ != nullptr)
+    {
+      cur_ = cur_->next_;
+    }
+    return *this;
+  }
+
+  template< class T >
+  LIter< T > LIter< T >::operator++(int) noexcept
+  {
+    LIter tmp(*this);
+    if (cur_ != nullptr)
+    {
+      cur_ = cur_->next_;
+    }
+    return tmp;
+  }
+
+  template< class T >
+  LIter< T >& LIter< T >::operator--() noexcept
+  {
+    if (cur_ == nullptr)
+    {
+      cur_ = tail_;
+    }
+    else
+    {
+      cur_ = cur_->prev_;
+    }
+    return *this;
+  }
+
+  template< class T >
+  LIter< T > LIter< T >::operator--(int) noexcept
+  {
+    LIter tmp(*this);
+    if (cur_ == nullptr)
+    {
+      cur_ = tail_;
+    }
+    else
+    {
+      cur_ = cur_->prev_;
+    }
+    return tmp;
+  }
+
+  template< class T >
+  LCIter< T >::LCIter() noexcept :
     cur_(nullptr),
     tail_(nullptr)
   {
   }
 
-  LCIter(const LIter<T>& other) noexcept :
+  template< class T >
+  LCIter< T >::LCIter(const LIter< T >& other) noexcept :
     cur_(other.cur_),
     tail_(other.tail_)
   {
   }
 
-  LCIter(const LCIter& other) noexcept = default;
-  LCIter(LCIter&& other) noexcept = default;
-  ~LCIter() = default;
-
-  LCIter& operator=(const LCIter& other) noexcept = default;
-  LCIter& operator=(LCIter&& other) noexcept = default;
-
-  bool operator==(const LCIter& other) const noexcept
-  {
-    return cur_ == other.cur_;
-  }
-
-  bool operator!=(const LCIter& other) const noexcept
-  {
-    return cur_ != other.cur_;
-  }
-
-  const T& operator*() const
-  {
-    return cur_->val_;
-  }
-
-  const T* operator->() const
-  {
-    return &(cur_->val_);
-  }
-
-  LCIter& operator++() noexcept
-  {
-    if (cur_ != nullptr) {
-      cur_ = cur_->next_;
-    }
-    return *this;
-  }
-
-  LCIter operator++(int) noexcept
-  {
-    LCIter tmp(*this);
-    if (cur_ != nullptr) {
-      cur_ = cur_->next_;
-    }
-    return tmp;
-  }
-
-  LCIter& operator--() noexcept
-  {
-    if (cur_ == nullptr) {
-      cur_ = tail_;
-    } else {
-      cur_ = cur_->prev_;
-    }
-    return *this;
-  }
-
-  LCIter operator--(int) noexcept
-  {
-    LCIter tmp(*this);
-    if (cur_ == nullptr) {
-      cur_ = tail_;
-    } else {
-      cur_ = cur_->prev_;
-    }
-    return tmp;
-  }
-
-private:
-  const Node<T>* cur_;
-  const Node<T>* tail_;
-
-  LCIter(const Node<T>* node, const Node<T>* listTail) noexcept :
+  template< class T >
+  LCIter< T >::LCIter(const Node< T >* node, const Node< T >* listTail) noexcept :
     cur_(node),
     tail_(listTail)
   {
   }
-};
 
-template<class T>
-class BiList {
-public:
-  BiList() noexcept :
+  template< class T >
+  bool LCIter< T >::operator==(const LCIter& other) const noexcept
+  {
+    return cur_ == other.cur_;
+  }
+
+  template< class T >
+  bool LCIter< T >::operator!=(const LCIter& other) const noexcept
+  {
+    return cur_ != other.cur_;
+  }
+
+  template< class T >
+  const T& LCIter< T >::operator*() const
+  {
+    return cur_->val_;
+  }
+
+  template< class T >
+  const T* LCIter< T >::operator->() const
+  {
+    return &(cur_->val_);
+  }
+
+  template< class T >
+  LCIter< T >& LCIter< T >::operator++() noexcept
+  {
+    if (cur_ != nullptr)
+    {
+      cur_ = cur_->next_;
+    }
+    return *this;
+  }
+
+  template< class T >
+  LCIter< T > LCIter< T >::operator++(int) noexcept
+  {
+    LCIter tmp(*this);
+    if (cur_ != nullptr)
+    {
+      cur_ = cur_->next_;
+    }
+    return tmp;
+  }
+
+  template< class T >
+  LCIter< T >& LCIter< T >::operator--() noexcept
+  {
+    if (cur_ == nullptr)
+    {
+      cur_ = tail_;
+    }
+    else
+    {
+      cur_ = cur_->prev_;
+    }
+    return *this;
+  }
+
+  template< class T >
+  LCIter< T > LCIter< T >::operator--(int) noexcept
+  {
+    LCIter tmp(*this);
+    if (cur_ == nullptr)
+    {
+      cur_ = tail_;
+    }
+    else
+    {
+      cur_ = cur_->prev_;
+    }
+    return tmp;
+  }
+
+  template< class T >
+  BiList< T >::BiList() noexcept :
     head_(nullptr),
     tail_(nullptr),
     size_(0)
   {
   }
 
-  BiList(const BiList& other) :
+  template< class T >
+  BiList< T >::BiList(const BiList& other) :
     head_(nullptr),
     tail_(nullptr),
     size_(0)
   {
-    LCIter<T> it = other.cbegin();
-    while (it != other.cend()) {
+    LCIter< T > it = other.cbegin();
+    while (it != other.cend())
+    {
       pushBack(*it);
       ++it;
     }
   }
 
-  BiList(BiList&& other) noexcept :
-    head_(other.head_),
-    tail_(other.tail_),
-    size_(other.size_)
+  template< class T >
+  BiList< T >::BiList(BiList&& other) noexcept :
+    BiList()
   {
-    other.head_ = nullptr;
-    other.tail_ = nullptr;
-    other.size_ = 0;
+    swap(other);
   }
 
-  ~BiList()
+  template< class T >
+  BiList< T >::~BiList()
   {
     clear();
   }
 
-  BiList& operator=(const BiList& other)
+  template< class T >
+  void BiList< T >::swap(BiList& other) noexcept
   {
-    if (this != &other) {
-      clear();
-      LCIter<T> it = other.cbegin();
-      while (it != other.cend()) {
-        pushBack(*it);
-        ++it;
-      }
+    std::swap(head_, other.head_);
+    std::swap(tail_, other.tail_);
+    std::swap(size_, other.size_);
+  }
+
+  template< class T >
+  BiList< T >& BiList< T >::operator=(const BiList& other)
+  {
+    if (this != &other)
+    {
+      BiList tmp(other);
+      swap(tmp);
     }
     return *this;
   }
 
-  BiList& operator=(BiList&& other) noexcept
+  template< class T >
+  BiList< T >& BiList< T >::operator=(BiList&& other) noexcept
   {
-    if (this != &other) {
-      clear();
-      head_ = other.head_;
-      tail_ = other.tail_;
-      size_ = other.size_;
-      other.head_ = nullptr;
-      other.tail_ = nullptr;
-      other.size_ = 0;
-    }
+    swap(other);
     return *this;
   }
 
-  bool isEmpty() const noexcept
+  template< class T >
+  bool BiList< T >::isEmpty() const noexcept
   {
-    if (size_ == 0) {
-      return true;
-    } else {
-      return false;
-    }
+    return size_ == 0;
   }
 
-  size_t getSize() const noexcept
+  template< class T >
+  size_t BiList< T >::getSize() const noexcept
   {
     return size_;
   }
 
-  T& front()
+  template< class T >
+  T& BiList< T >::front()
   {
-    if (isEmpty()) {
+    if (isEmpty())
+    {
       throw std::runtime_error("List is empty");
     }
     return head_->val_;
   }
 
-  const T& front() const
+  template< class T >
+  const T& BiList< T >::front() const
   {
-    if (isEmpty()) {
+    if (isEmpty())
+    {
       throw std::runtime_error("List is empty");
     }
     return head_->val_;
   }
 
-  T& back()
+  template< class T >
+  T& BiList< T >::back()
   {
-    if (isEmpty()) {
+    if (isEmpty())
+    {
       throw std::runtime_error("List is empty");
     }
     return tail_->val_;
   }
 
-  const T& back() const
+  template< class T >
+  const T& BiList< T >::back() const
   {
-    if (isEmpty()) {
+    if (isEmpty())
+    {
       throw std::runtime_error("List is empty");
     }
     return tail_->val_;
   }
 
-  LIter<T> begin() noexcept
+  template< class T >
+  LIter< T > BiList< T >::begin() noexcept
   {
-    return LIter<T>(head_, tail_);
+    return LIter< T >(head_, tail_);
   }
 
-  LCIter<T> cbegin() const noexcept
+  template< class T >
+  LCIter< T > BiList< T >::cbegin() const noexcept
   {
-    return LCIter<T>(head_, tail_);
+    return LCIter< T >(head_, tail_);
   }
 
-  LIter<T> end() noexcept
+  template< class T >
+  LIter< T > BiList< T >::end() noexcept
   {
-    return LIter<T>(nullptr, tail_);
+    return LIter< T >(nullptr, tail_);
   }
 
-  LCIter<T> cend() const noexcept
+  template< class T >
+  LCIter< T > BiList< T >::cend() const noexcept
   {
-    return LCIter<T>(nullptr, tail_);
+    return LCIter< T >(nullptr, tail_);
   }
 
-  void pushFront(const T& value)
+  template< class T >
+  void BiList< T >::pushFront(const T& value)
   {
-    Node<T>* newNode = new Node<T>(value);
-    if (size_ == 0) {
+    Node< T >* newNode = new Node< T >(value);
+    if (size_ == 0)
+    {
       head_ = newNode;
       tail_ = newNode;
-    } else {
+    }
+    else
+    {
       newNode->next_ = head_;
       head_->prev_ = newNode;
       head_ = newNode;
@@ -370,13 +504,17 @@ public:
     size_ = size_ + 1;
   }
 
-  void pushFront(T&& value)
+  template< class T >
+  void BiList< T >::pushFront(T&& value)
   {
-    Node<T>* newNode = new Node<T>(std::move(value));
-    if (size_ == 0) {
+    Node< T >* newNode = new Node< T >(std::move(value));
+    if (size_ == 0)
+    {
       head_ = newNode;
       tail_ = newNode;
-    } else {
+    }
+    else
+    {
       newNode->next_ = head_;
       head_->prev_ = newNode;
       head_ = newNode;
@@ -384,13 +522,17 @@ public:
     size_ = size_ + 1;
   }
 
-  void pushBack(const T& value)
+  template< class T >
+  void BiList< T >::pushBack(const T& value)
   {
-    Node<T>* newNode = new Node<T>(value);
-    if (size_ == 0) {
+    Node< T >* newNode = new Node< T >(value);
+    if (size_ == 0)
+    {
       head_ = newNode;
       tail_ = newNode;
-    } else {
+    }
+    else
+    {
       newNode->prev_ = tail_;
       tail_->next_ = newNode;
       tail_ = newNode;
@@ -398,13 +540,17 @@ public:
     size_ = size_ + 1;
   }
 
-  void pushBack(T&& value)
+  template< class T >
+  void BiList< T >::pushBack(T&& value)
   {
-    Node<T>* newNode = new Node<T>(std::move(value));
-    if (size_ == 0) {
+    Node< T >* newNode = new Node< T >(std::move(value));
+    if (size_ == 0)
+    {
       head_ = newNode;
       tail_ = newNode;
-    } else {
+    }
+    else
+    {
       newNode->prev_ = tail_;
       tail_->next_ = newNode;
       tail_ = newNode;
@@ -412,33 +558,41 @@ public:
     size_ = size_ + 1;
   }
 
-  LIter<T> insert(LIter<T> pos, const T& value)
+  template< class T >
+  LIter< T > BiList< T >::insert(LIter< T > pos, const T& value)
   {
-    if (pos == end()) {
+    if (pos == end())
+    {
       pushBack(value);
-      return LIter<T>(tail_, tail_);
+      return LIter< T >(tail_, tail_);
     }
-    if (pos == begin()) {
+    if (pos == begin())
+    {
       pushFront(value);
       return begin();
     }
-    Node<T>* newNode = new Node<T>(value, pos.cur_->prev_, pos.cur_);
+    Node< T >* newNode = new Node< T >(value, pos.cur_->prev_, pos.cur_);
     pos.cur_->prev_->next_ = newNode;
     pos.cur_->prev_ = newNode;
     size_ = size_ + 1;
-    return LIter<T>(newNode, tail_);
+    return LIter< T >(newNode, tail_);
   }
 
-  void popFront()
+  template< class T >
+  void BiList< T >::popFront()
   {
-    if (size_ == 0) {
+    if (size_ == 0)
+    {
       throw std::runtime_error("List is empty");
     }
-    Node<T>* temp = head_;
-    if (size_ == 1) {
+    Node< T >* temp = head_;
+    if (size_ == 1)
+    {
       head_ = nullptr;
       tail_ = nullptr;
-    } else {
+    }
+    else
+    {
       head_ = head_->next_;
       head_->prev_ = nullptr;
     }
@@ -446,16 +600,21 @@ public:
     size_ = size_ - 1;
   }
 
-  void popBack()
+  template< class T >
+  void BiList< T >::popBack()
   {
-    if (size_ == 0) {
+    if (size_ == 0)
+    {
       throw std::runtime_error("List is empty");
     }
-    Node<T>* temp = tail_;
-    if (size_ == 1) {
+    Node< T >* temp = tail_;
+    if (size_ == 1)
+    {
       head_ = nullptr;
       tail_ = nullptr;
-    } else {
+    }
+    else
+    {
       tail_ = tail_->prev_;
       tail_->next_ = nullptr;
     }
@@ -463,39 +622,45 @@ public:
     size_ = size_ - 1;
   }
 
-  LIter<T> erase(LIter<T> pos)
+  template< class T >
+  LIter< T > BiList< T >::erase(LIter< T > pos)
   {
-    if (size_ == 0 || pos == end()) {
+    if (size_ == 0 || pos == end())
+    {
       throw std::runtime_error("Can not erase");
     }
-    if (pos == begin()) {
+    if (pos == begin())
+    {
       popFront();
       return begin();
     }
-    if (pos.cur_ == tail_) {
+    if (pos.cur_ == tail_)
+    {
       popBack();
       return end();
     }
-    Node<T>* nextNode = pos.cur_->next_;
+    Node< T >* nextNode = pos.cur_->next_;
     pos.cur_->prev_->next_ = pos.cur_->next_;
     pos.cur_->next_->prev_ = pos.cur_->prev_;
     delete pos.cur_;
     size_ = size_ - 1;
-    return LIter<T>(nextNode, tail_);
+    return LIter< T >(nextNode, tail_);
   }
 
-  void clear() noexcept
+  template< class T >
+  void BiList< T >::clear() noexcept
   {
-    while (size_ > 0) {
-      popFront();
+    Node< T >* current = head_;
+    while (current != nullptr)
+    {
+      Node< T >* nextNode = current->next_;
+      delete current;
+      current = nextNode;
     }
+    head_ = nullptr;
+    tail_ = nullptr;
+    size_ = 0;
   }
-
-private:
-  Node<T>* head_;
-  Node<T>* tail_;
-  size_t size_;
-};
 
 }
 
