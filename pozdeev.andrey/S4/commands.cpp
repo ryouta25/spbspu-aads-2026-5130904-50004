@@ -56,16 +56,16 @@ namespace pozdeev {
       if (words.size() == 0) {
         continue;
       }
-      
+
       std::string dsName = words[0];
       Dictionary dict;
-      
+
       for (size_t i = 1; i + 1 < words.size(); i += 2) {
         int key = stringToInt(words[i]);
         std::string value = words[i + 1];
         dict.push(key, value);
       }
-      
+
       dataSets.push(dsName, dict);
     }
   }
