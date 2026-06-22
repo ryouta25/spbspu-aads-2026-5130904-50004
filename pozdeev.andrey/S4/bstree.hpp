@@ -373,6 +373,140 @@ namespace pozdeev {
     size_ = 0;
   }
 
+  template< class Key, class Value, class Compare >
+  void BSTree< Key, Value, Compare >::push(const Key & k, const Value & v)
+  {
+    NodeBase * current = getRoot();
+    NodeBase * parent = &fakeRoot_;
+    bool isLeft = true;
+
+    while (current) {
+      parent = current;
+      const Key & currentKey = static_cast< Node< Key, Value > * >(current)->data_.first;
+
+      if (comp_(k, currentKey)) {
+        current = current->left_;
+        isLeft = true;
+      } else if (comp_(currentKey, k)) {
+        current = current->right_;
+        isLeft = false;
+      } else {
+        static_cast< Node< Key, Value > * >(current)->data_.second = v;
+        return;
+      }
+    }
+
+    Node< Key, Value > * newNode = new Node< Key, Value >(k, v);
+    newNode->parent_ = parent;
+
+    if (parent == &fakeRoot_) {
+      parent->left_ = newNode;
+    } else if (isLeft) {
+      parent->left_ = newNode;
+    } else {
+      parent->right_ = newNode;
+    }
+
+    size_ = size_ + 1;
+  }
+
+  template< class Key, class Value, class Compare >
+  NodeBase * BSTree< Key, Value, Compare >::findNode(const Key & k) const
+  {
+    NodeBase * current = getRoot();
+    while (current) {
+      const Key & currentKey = static_cast< Node< Key, Value > * >(current)->data_.first;
+      if (comp_(k, currentKey)) {
+        current = current->left_;
+      } else if (comp_(currentKey, k)) {
+        current = current->right_;
+      } else {
+        return current;
+      }
+    }
+    return nullptr;
+  }
+
+  template< class Key, class Value, class Compare >
+  bool BSTree< Key, Value, Compare >::has(const Key & k) const
+  {
+    return findNode(k) != nullptr;
+  }
+
+  template< class Key, class Value, class Compare >
+  Value & BSTree< Key, Value, Compare >::get(const Key & k)
+  {
+    NodeBase * node = findNode(k);
+    if (!node) {
+      throw std::out_of_range("Key not found in BSTree");
+    }
+    return static_cast< Node< Key, Value > * >(node)->data_.second;
+  }
+
+  template< class Key, class Value, class Compare >
+  const Value & BSTree< Key, Value, Compare >::get(const Key & k) const
+  {
+    NodeBase * node = findNode(k);
+    if (!node) {
+      throw std::out_of_range("Key not found in BSTree");
+    }
+    return static_cast< const Node< Key, Value > * >(node)->data_.second;
+  }
+
+  template< class Key, class Value, class Compare >
+  void BSTree< Key, Value, Compare >::replaceNode(NodeBase * u, NodeBase * v)
+  {
+    if (u->parent_->left_ == u) {
+      u->parent_->left_ = v;
+    } else {
+      u->parent_->right_ = v;
+    }
+    if (v) {
+      v->parent_ = u->parent_;
+    }
+  }
+
+  template< class Key, class Value, class Compare >
+  Value BSTree< Key, Value, Compare >::drop(const Key & k)
+  {
+    NodeBase * z = findNode(k);
+    if (!z) {
+      throw std::out_of_range("Key not found in BSTree");
+    }
+
+    Value droppedValue = static_cast< Node< Key, Value > * >(z)->data_.second;
+
+    if (!z->left_) {
+      replaceNode(z, z->right_);
+    } else if (!z->right_) {
+      replaceNode(z, z->left_);
+    } else {
+      NodeBase * y = z->right_;
+      while (y->left_) {
+        y = y->left_;
+      }
+      if (y->parent_ != z) {
+        replaceNode(y, y->right_);
+        y->right_ = z->right_;
+        y->right_->parent_ = y;
+      }
+      replaceNode(z, y);
+      y->left_ = z->left_;
+      y->left_->parent_ = y;
+    }
+
+    delete static_cast< Node< Key, Value > * >(z);
+    size_ = size_ - 1;
+
+    return droppedValue;
+  }
+
+  template< class Key, class Value, class Compare >
+  bool BSTree< Key, Value, Compare >::empty() const
+  {
+    return size_ == 0;
+  }
+
 }
 
 #endif
