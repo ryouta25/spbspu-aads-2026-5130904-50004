@@ -156,24 +156,38 @@ namespace pozdeev {
 
   void processCommands(std::istream & in, std::ostream & out, DataSets & dataSets)
   {
-    std::string cmd;
-    while (in >> cmd) {
+    std::string line;
+    while (std::getline(in, line)) {
+      Vector< std::string > args = splitWords(line);
+      if (args.size() == 0) {
+        continue;
+      }
+
+      const std::string & cmd = args[0];
       if (cmd == "print") {
-        std::string dsName;
-        in >> dsName;
-        executePrint(dsName, dataSets, out);
+        if (args.size() != 2) {
+          out << "<INVALID COMMAND>\n";
+        } else {
+          executePrint(args[1], dataSets, out);
+        }
       } else if (cmd == "complement") {
-        std::string newDs, ds1, ds2;
-        in >> newDs >> ds1 >> ds2;
-        executeComplement(newDs, ds1, ds2, dataSets, out);
+        if (args.size() != 4) {
+          out << "<INVALID COMMAND>\n";
+        } else {
+          executeComplement(args[1], args[2], args[3], dataSets, out);
+        }
       } else if (cmd == "intersect") {
-        std::string newDs, ds1, ds2;
-        in >> newDs >> ds1 >> ds2;
-        executeIntersect(newDs, ds1, ds2, dataSets, out);
+        if (args.size() != 4) {
+          out << "<INVALID COMMAND>\n";
+        } else {
+          executeIntersect(args[1], args[2], args[3], dataSets, out);
+        }
       } else if (cmd == "union") {
-        std::string newDs, ds1, ds2;
-        in >> newDs >> ds1 >> ds2;
-        executeUnion(newDs, ds1, ds2, dataSets, out);
+        if (args.size() != 4) {
+          out << "<INVALID COMMAND>\n";
+        } else {
+          executeUnion(args[1], args[2], args[3], dataSets, out);
+        }
       } else {
         out << "<INVALID COMMAND>\n";
       }
