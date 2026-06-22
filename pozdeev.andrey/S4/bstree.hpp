@@ -507,6 +507,139 @@ namespace pozdeev {
     return size_ == 0;
   }
 
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::iterator BSTree< Key, Value, Compare >::begin()
+  {
+    NodeBase * curr = fakeRoot_.left_;
+    if (curr) {
+      while (curr->left_) {
+        curr = curr->left_;
+      }
+    } else {
+      curr = &fakeRoot_;
+    }
+    return iterator(curr);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::iterator BSTree< Key, Value, Compare >::end()
+  {
+    return iterator(&fakeRoot_);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::begin() const
+  {
+    const NodeBase * curr = fakeRoot_.left_;
+    if (curr) {
+      while (curr->left_) {
+        curr = curr->left_;
+      }
+    } else {
+      curr = &fakeRoot_;
+    }
+    return const_iterator(curr);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::end() const
+  {
+    return const_iterator(&fakeRoot_);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::cbegin() const
+  {
+    return begin();
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::cend() const
+  {
+    return end();
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::rotateLeft(const_iterator it)
+  {
+    NodeBase * x = const_cast< NodeBase * >(it.node_);
+    NodeBase * y = x->right_;
+
+    if (!y) {
+      return it;
+    }
+
+    x->right_ = y->left_;
+    if (y->left_) {
+      y->left_->parent_ = x;
+    }
+
+    replaceNode(x, y);
+    y->left_ = x;
+    x->parent_ = y;
+
+    return const_iterator(y);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::rotateRight(const_iterator it)
+  {
+    NodeBase * x = const_cast< NodeBase * >(it.node_);
+    NodeBase * y = x->left_;
+
+    if (!y) {
+      return it;
+    }
+
+    x->left_ = y->right_;
+    if (y->right_) {
+      y->right_->parent_ = x;
+    }
+
+    replaceNode(x, y);
+    y->right_ = x;
+    x->parent_ = y;
+
+    return const_iterator(y);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::rotateLargeLeft(const_iterator it)
+  {
+    rotateRight(const_iterator(it.node_->right_));
+    return rotateLeft(it);
+  }
+
+  template< class Key, class Value, class Compare >
+  typename BSTree< Key, Value, Compare >::const_iterator BSTree< Key, Value, Compare >::rotateLargeRight(const_iterator it)
+  {
+    rotateLeft(const_iterator(it.node_->left_));
+    return rotateRight(it);
+  }
+
+  template< class Key, class Value, class Compare >
+  size_t BSTree< Key, Value, Compare >::calculateHeight(const NodeBase * node) const
+  {
+    if (!node) {
+      return 0;
+    }
+    size_t leftHeight = calculateHeight(node->left_);
+    size_t rightHeight = calculateHeight(node->right_);
+    return 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
+  }
+
+  template< class Key, class Value, class Compare >
+  size_t BSTree< Key, Value, Compare >::height(const_iterator it) const
+  {
+    return calculateHeight(it.node_);
+  }
+
+  template< class Key, class Value, class Compare >
+  size_t BSTree< Key, Value, Compare >::height() const
+  {
+    return calculateHeight(getRoot());
+  }
+
 }
 
 #endif
