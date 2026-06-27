@@ -92,3 +92,47 @@ double pozdeev::Scenario::calculateWinProbability() const
   }
   return totalProb;
 }
+
+void pozdeev::Scenario::analyzeWeakness() const
+{
+  std::cout << "ANALYSIS RESULT [" << id_ << "]:\n";
+  if (actions_.isEmpty()) {
+    std::cout << "No actions to analyze.\n";
+    return;
+  }
+
+  const double totalProb = calculateWinProbability();
+  std::cout << "Total Win Probability: " << std::fixed << std::setprecision(1)
+            << (totalProb * 100.0) << "%\n";
+
+  double minProb = 1.0;
+  size_t weakIndex = 0;
+
+  for (size_t i = 0; i < actions_.getSize(); ++i) {
+    if (actions_[i].prob_ < minProb) {
+      minProb = actions_[i].prob_;
+      weakIndex = i;
+    }
+  }
+
+  const action_t& weakAct = actions_[weakIndex];
+  const double impactProb = (minProb > 0.0) ? (totalProb / minProb) * (1.0 - minProb) : 0.0;
+
+  double remainingWeakTime = 120.0 - weakAct.time_;
+  if (remainingWeakTime < 0.0) {
+    remainingWeakTime = 0.0;
+  }
+  int wMinutes = static_cast<int>(remainingWeakTime) / 60;
+  double wSeconds = remainingWeakTime - (wMinutes * 60.0);
+
+  std::cout << "Critical Weakness: Action at " << wMinutes << ":";
+  if (wSeconds < 10.0) {
+    std::cout << "0";
+  }
+  std::cout << std::fixed << std::setprecision(1) << wSeconds << " ("
+            << weakAct.player_ << " " << weakAct.type_ << ")\n";
+
+  std::cout << "Impact: Failure reduces win chance to "
+            << (impactProb * 100.0) << "%\n";
+  std::cout << "Recommendation: Ensure high success rate for this action.\n";
+}
