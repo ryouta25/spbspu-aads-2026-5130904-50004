@@ -13,6 +13,16 @@ namespace pozdeev {
   public:
     AvlTree() = default;
 
+    bool insert(const Key& key, const Value& value)
+    {
+      if (find(key) != nullptr) {
+        return false;
+      }
+      root_ = insertNode(std::move(root_), key, value);
+      ++size_;
+      return true;
+    }
+
     Value* find(const Key& key) const
     {
       Node* current = root_.get();
@@ -87,6 +97,41 @@ namespace pozdeev {
       y->left_ = std::move(x);
       updateHeight(y.get());
       return y;
+    }
+
+    std::unique_ptr<Node> insertNode(std::unique_ptr<Node> node, const Key& key, const Value& value)
+    {
+      if (!node) {
+        return std::make_unique<Node>(key, value);
+      }
+
+      if (key < node->key_) {
+        node->left_ = insertNode(std::move(node->left_), key, value);
+      } else if (key > node->key_) {
+        node->right_ = insertNode(std::move(node->right_), key, value);
+      } else {
+        return node;
+      }
+
+      updateHeight(node.get());
+      const int balance = getBalance(node.get());
+
+      if (balance > 1 && key < node->left_->key_) {
+        return rotateRight(std::move(node));
+      }
+      if (balance < -1 && key > node->right_->key_) {
+        return rotateLeft(std::move(node));
+      }
+      if (balance > 1 && key > node->left_->key_) {
+        node->left_ = rotateLeft(std::move(node->left_));
+        return rotateRight(std::move(node));
+      }
+      if (balance < -1 && key < node->right_->key_) {
+        node->right_ = rotateRight(std::move(node->right_));
+        return rotateLeft(std::move(node));
+      }
+
+      return node;
     }
   };
 
