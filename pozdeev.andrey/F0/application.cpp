@@ -25,6 +25,10 @@ void pozdeev::Application::processCommand(const std::string& commandLine)
     handleAddScenario(stream);
   } else if (command == "add_action") {
     handleAddAction(stream);
+  } else if (command == "find") {
+    handleFind(stream);
+  } else if (command == "list") {
+    handleList();
   } else if (command == "clear") {
     handleClear();
   } else if (command == "exit") {
@@ -67,6 +71,34 @@ void pozdeev::Application::handleAddAction(std::istringstream& stream)
     }
   } else {
     throw std::invalid_argument("<INVALID ARGUMENTS>");
+  }
+}
+
+void pozdeev::Application::handleFind(std::istringstream& stream) const
+{
+  std::string id;
+  if (stream >> id) {
+    Scenario* scenario = database_.find(id);
+    if (scenario) {
+      std::cout << "FOUND [" << id << "]:\n";
+      std::cout << "Match: " << scenario->getMatch() << " | Team: " << scenario->getTeam()
+                << " | Map: " << scenario->getMap() << " | Type: " << scenario->getType() << "\n";
+      std::cout << "Actions count: " << scenario->getActions().getSize() << "\n";
+    } else {
+      std::cout << "<NOT FOUND>\n";
+    }
+  } else {
+    throw std::invalid_argument("<INVALID ARGUMENTS>");
+  }
+}
+
+void pozdeev::Application::handleList() const
+{
+  Vector<const Scenario*> scenarios;
+  database_.inOrderTraversal(scenarios);
+  for (const Scenario* s : scenarios) {
+    std::cout << "[" << s->getId() << "]: " << s->getTeam() << " - "
+              << s->getMap() << " - " << s->getType() << " (Match: " << s->getMatch() << ")\n";
   }
 }
 
