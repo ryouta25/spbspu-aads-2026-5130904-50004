@@ -29,6 +29,10 @@ void pozdeev::Application::processCommand(const std::string& commandLine)
     handleFind(stream);
   } else if (command == "list") {
     handleList();
+  } else if (command == "simulate") {
+    handleSimulate(stream);
+  } else if (command == "analyze") {
+    handleAnalyze(stream);
   } else if (command == "clear") {
     handleClear();
   } else if (command == "exit") {
@@ -99,6 +103,36 @@ void pozdeev::Application::handleList() const
   for (const Scenario* s : scenarios) {
     std::cout << "[" << s->getId() << "]: " << s->getTeam() << " - "
               << s->getMap() << " - " << s->getType() << " (Match: " << s->getMatch() << ")\n";
+  }
+}
+
+void pozdeev::Application::handleSimulate(std::istringstream& stream) const
+{
+  std::string id;
+  if (stream >> id) {
+    Scenario* scenario = database_.find(id);
+    if (scenario) {
+      scenario->printSimulation();
+    } else {
+      std::cout << "<SCENARIO NOT FOUND>\n";
+    }
+  } else {
+    throw std::invalid_argument("<INVALID ARGUMENTS>");
+  }
+}
+
+void pozdeev::Application::handleAnalyze(std::istringstream& stream) const
+{
+  std::string id;
+  if (stream >> id) {
+    Scenario* scenario = database_.find(id);
+    if (scenario) {
+      scenario->analyzeWeakness();
+    } else {
+      std::cout << "<SCENARIO NOT FOUND>\n";
+    }
+  } else {
+    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
 }
 
