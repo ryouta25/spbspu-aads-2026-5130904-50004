@@ -1,0 +1,77 @@
+#include "application.hpp"
+
+#include <iostream>
+#include <iomanip>
+#include <stdexcept>
+
+void pozdeev::Application::run()
+{
+  std::string line;
+  while (std::getline(std::cin, line)) {
+    if (line.empty()) {
+      continue;
+    }
+    processCommand(line);
+  }
+}
+
+void pozdeev::Application::processCommand(const std::string& commandLine)
+{
+  std::istringstream stream(commandLine);
+  std::string command;
+  stream >> command;
+
+  if (command == "add_scenario") {
+    handleAddScenario(stream);
+  } else if (command == "add_action") {
+    handleAddAction(stream);
+  } else if (command == "clear") {
+    handleClear();
+  } else if (command == "exit") {
+    std::cout << "(Программа завершает работу)\n";
+    exit(0);
+  } else {
+    throw std::invalid_argument("<UNKNOWN COMMAND>");
+  }
+}
+
+void pozdeev::Application::handleAddScenario(std::istringstream& stream)
+{
+  std::string id, match, team, map, type;
+  if (stream >> id >> match >> team >> map >> type) {
+    Scenario newScenario(id, match, team, map, type);
+    if (database_.insert(id, newScenario)) {
+      std::cout << "OK\n";
+    } else {
+      std::cout << "<INVALID COMMAND: SCENARIO '" << id << "' ALREADY EXISTS>\n";
+    }
+  } else {
+    throw std::invalid_argument("<INVALID ARGUMENTS>");
+  }
+}
+
+void pozdeev::Application::handleAddAction(std::istringstream& stream)
+{
+  std::string id, player, type, target;
+  double time = 0.0;
+  double prob = 0.0;
+
+  if (stream >> id >> time >> player >> type >> target >> prob) {
+    Scenario* scenario = database_.find(id);
+    if (scenario) {
+      action_t action{time, player, type, target, prob};
+      scenario->addAction(action);
+      std::cout << "OK\n";
+    } else {
+      std::cout << "<SCENARIO NOT FOUND>\n";
+    }
+  } else {
+    throw std::invalid_argument("<INVALID ARGUMENTS>");
+  }
+}
+
+void pozdeev::Application::handleClear()
+{
+  database_.clear();
+  std::cout << "ALL SCENARIOS CLEARED\n";
+}
