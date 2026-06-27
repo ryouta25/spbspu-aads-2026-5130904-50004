@@ -44,6 +44,21 @@ namespace pozdeev {
       size_ = 0;
     }
 
+    int getHeight() const
+    {
+      return height(root_.get());
+    }
+
+    size_t getSize() const
+    {
+      return size_;
+    }
+
+    void inOrderTraversal(Vector<const Value*>& result) const
+    {
+      inOrderHelper(root_.get(), result);
+    }
+
   private:
     struct Node {
       Key key_;
@@ -132,6 +147,15 @@ namespace pozdeev {
       }
 
       return node;
+    }
+
+    void inOrderHelper(Node* node, Vector<const Value*>& result) const
+    {
+      if (node) {
+        inOrderHelper(node->left_.get(), result);
+        result.pushBack(&(node->value_));
+        inOrderHelper(node->right_.get(), result);
+      }
     }
   };
 
