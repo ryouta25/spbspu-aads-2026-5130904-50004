@@ -1,5 +1,7 @@
 #include "scenario.hpp"
 
+#include <algorithm>
+
 pozdeev::Scenario::Scenario(const std::string& id, const std::string& match,
                             const std::string& team, const std::string& map,
                             const std::string& type):
@@ -39,4 +41,13 @@ const std::string& pozdeev::Scenario::getType() const
 const pozdeev::Vector<pozdeev::action_t>& pozdeev::Scenario::getActions() const
 {
   return actions_;
+}
+
+void pozdeev::Scenario::addAction(const action_t& action)
+{
+  actions_.pushBack(action);
+  std::sort(actions_.begin(), actions_.end(),
+            [](const action_t& lhs, const action_t& rhs) -> bool {
+              return lhs.time_ < rhs.time_;
+            });
 }
