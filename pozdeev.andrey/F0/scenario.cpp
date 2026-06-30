@@ -1,138 +1,97 @@
 #include "scenario.hpp"
 
-#include <iostream>
-#include <iomanip>
-#include <algorithm>
+namespace pozdeev {
 
-pozdeev::Scenario::Scenario(const std::string& id, const std::string& match,
-                            const std::string& team, const std::string& map,
-                            const std::string& type):
-  id_(id),
-  match_(match),
-  team_(team),
-  map_(map),
-  type_(type)
-{
-}
+  Scenario::Scenario(const std::string& id, const std::string& match,
+                     const std::string& team, const std::string& map,
+                     const std::string& type)
+      : id_(id)
+      , match_(match)
+      , team_(team)
+      , map_(map)
+      , type_(type)
+  {}
 
-const std::string& pozdeev::Scenario::getId() const
-{
-  return id_;
-}
+  const std::string& Scenario::getId() const
+  {
+    return id_;
+  }
 
-const std::string& pozdeev::Scenario::getMatch() const
-{
-  return match_;
-}
+  const std::string& Scenario::getMatch() const
+  {
+    return match_;
+  }
 
-const std::string& pozdeev::Scenario::getTeam() const
-{
-  return team_;
-}
+  const std::string& Scenario::getTeam() const
+  {
+    return team_;
+  }
 
-const std::string& pozdeev::Scenario::getMap() const
-{
-  return map_;
-}
+  const std::string& Scenario::getMap() const
+  {
+    return map_;
+  }
 
-const std::string& pozdeev::Scenario::getType() const
-{
-  return type_;
-}
+  const std::string& Scenario::getType() const
+  {
+    return type_;
+  }
 
-const pozdeev::Vector<pozdeev::action_t>& pozdeev::Scenario::getActions() const
-{
-  return actions_;
-}
+  const Vector<action_t>& Scenario::getActions() const
+  {
+    return actions_;
+  }
 
-void pozdeev::Scenario::addAction(const action_t& action)
-{
-  actions_.pushBack(action);
-  std::sort(actions_.begin(), actions_.end(),
-            [](const action_t& lhs, const action_t& rhs) -> bool {
-              return lhs.time_ < rhs.time_;
-            });
-}
+  void Scenario::addAction(const action_t& action)
+  {
+    actions_.pushBack(action);
+    quickSort(actions_.begin(), actions_.end(), [](const action_t& lhs, const action_t& rhs) {
+      return lhs.time < rhs.time;
+    });
+  }
 
-void pozdeev::Scenario::printSimulation() const
-{
-  std::cout << "--- SIMULATION: " << id_ << " ---\n";
-  std::cout << "Match: " << match_ << " | Team: " << team_ << "\n";
+  double Scenario::calculateWinProbability() const
+  {
+    double prob = 1.0;
+    for (size_t i = 0; i < actions_.getSize(); ++i) {
+      prob *= actions_[i].prob;
+    }
+    return prob;
+  }
 
-  for (const action_t& act : actions_) {
-    double remainingTime = 120.0 - act.time_;
-    if (remainingTime < 0.0) {
-      remainingTime = 0.0;
+  AnalysisResult Scenario::analyzeWeakness() const
+  {
+    AnalysisResult res{};
+    res.hasActions = !actions_.isEmpty();
+    if (!res.hasActions) {
+      return res;
     }
 
-    int minutes = static_cast<int>(remainingTime) / 60;
-    double seconds = remainingTime - (minutes * 60.0);
+    res.totalProb = calculateWinProbability();
+    res.minProb = 1.0;
+    size_t weakIndex = 0;
 
-    std::cout << "[" << minutes << ":";
-
-    if (seconds < 10.0) {
-      std::cout << "0";
+    for (size_t i = 0; i < actions_.getSize(); ++i) {
+      if (actions_[i].prob < res.minProb) {
+        res.minProb = actions_[i].prob;
+        weakIndex = i;
+      }
     }
 
-    std::cout << std::fixed << std::setprecision(1) << seconds << "] "
-              << act.player_ << ": " << act.type_ << " -> " << act.target_
-              << " (Prob: " << act.prob_ * 100.0 << "%)\n";
-  }
-  std::cout << "Simulation complete.\n";
-}
+    const action_t& weakAct = actions_[weakIndex];
+    res.weakTime = weakAct.time;
+    res.weakPlayer = weakAct.player;
+    res.weakType = weakAct.type;
+    res.impactProb = (res.minProb > 0.0) ? (res.totalProb / res.minProb) * (1.0 - res.minProb) : 0.0;
 
-double pozdeev::Scenario::calculateWinProbability() const
-{
-  if (actions_.isEmpty()) {
-    return 0.0;
-  }
-  double totalProb = 1.0;
-  for (const action_t& act : actions_) {
-    totalProb *= act.prob_;
-  }
-  return totalProb;
-}
-
-void pozdeev::Scenario::analyzeWeakness() const
-{
-  std::cout << "ANALYSIS RESULT [" << id_ << "]:\n";
-  if (actions_.isEmpty()) {
-    std::cout << "No actions to analyze.\n";
-    return;
+    return res;
   }
 
-  const double totalProb = calculateWinProbability();
-  std::cout << "Total Win Probability: " << std::fixed << std::setprecision(1)
-            << (totalProb * 100.0) << "%\n";
-
-  double minProb = 1.0;
-  size_t weakIndex = 0;
-
-  for (size_t i = 0; i < actions_.getSize(); ++i) {
-    if (actions_[i].prob_ < minProb) {
-      minProb = actions_[i].prob_;
-      weakIndex = i;
-    }
+  std::ostream& operator<<(std::ostream& os, const Scenario& sc)
+  {
+    os << "Match: " << sc.getMatch() << " | Team: " << sc.getTeam()
+       << " | Map: " << sc.getMap() << " | Type: " << sc.getType();
+    return os;
   }
 
-  const action_t& weakAct = actions_[weakIndex];
-  const double impactProb = (minProb > 0.0) ? (totalProb / minProb) * (1.0 - minProb) : 0.0;
-
-  double remainingWeakTime = 120.0 - weakAct.time_;
-  if (remainingWeakTime < 0.0) {
-    remainingWeakTime = 0.0;
-  }
-  int wMinutes = static_cast<int>(remainingWeakTime) / 60;
-  double wSeconds = remainingWeakTime - (wMinutes * 60.0);
-
-  std::cout << "Critical Weakness: Action at " << wMinutes << ":";
-  if (wSeconds < 10.0) {
-    std::cout << "0";
-  }
-  std::cout << std::fixed << std::setprecision(1) << wSeconds << " ("
-            << weakAct.player_ << " " << weakAct.type_ << ")\n";
-
-  std::cout << "Impact: Failure reduces win chance to "
-            << (impactProb * 100.0) << "%\n";
-  std::cout << "Recommendation: Ensure high success rate for this action.\n";
 }
