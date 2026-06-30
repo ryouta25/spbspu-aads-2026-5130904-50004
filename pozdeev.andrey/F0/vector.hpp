@@ -2,8 +2,8 @@
 #define VECTOR_HPP
 
 #include <cstddef>
+#include <memory>
 #include <utility>
-#include <new>
 
 namespace pozdeev {
 
@@ -11,36 +11,33 @@ namespace pozdeev {
   class Vector {
   public:
     Vector();
+    ~Vector();
     Vector(const Vector& other);
     Vector(Vector&& other) noexcept;
-    ~Vector();
-
     Vector& operator=(const Vector& other);
     Vector& operator=(Vector&& other) noexcept;
 
     void pushBack(const T& value);
     void pushBack(T&& value);
-
-    size_t getSize() const noexcept;
-    bool isEmpty() const noexcept;
-    void clear() noexcept;
+    void popBack();
+    size_t getSize() const;
+    bool isEmpty() const;
+    void clear();
 
     T& operator[](size_t index);
     const T& operator[](size_t index) const;
 
-    void swap(Vector& other) noexcept;
-
-    T* begin() noexcept;
-    const T* begin() const noexcept;
-    T* end() noexcept;
-    const T* end() const noexcept;
+    T* begin();
+    T* end();
+    const T* begin() const;
+    const T* end() const;
 
   private:
     T* data_;
     size_t size_;
     size_t capacity_;
 
-    void reserve(size_t newCap);
+    void reallocate(size_t newCapacity);
   };
 
   template <typename T>
@@ -48,23 +45,26 @@ namespace pozdeev {
     data_(nullptr),
     size_(0),
     capacity_(0)
+  {}
+
+  template <typename T>
+  Vector<T>::~Vector()
   {
+    clear();
+    ::operator delete(data_);
   }
 
   template <typename T>
   Vector<T>::Vector(const Vector& other) :
-    data_(other.capacity_ ? static_cast<T*>(::operator new(other.capacity_ * sizeof(T))) : nullptr),
-    size_(0),
+    data_(nullptr),
+    size_(other.size_),
     capacity_(other.capacity_)
   {
-    try {
-      for (; size_ < other.size_; ++size_) {
-        new (data_ + size_) T(other.data_[size_]);
+    if (capacity_ > 0) {
+      data_ = static_cast<T*>(::operator new(capacity_ * sizeof(T)));
+      for (size_t i = 0; i < size_; ++i) {
+        new (data_ + i) T(other.data_[i]);
       }
-    } catch (...) {
-      clear();
-      ::operator delete(data_);
-      throw;
     }
   }
 
@@ -80,18 +80,13 @@ namespace pozdeev {
   }
 
   template <typename T>
-  Vector<T>::~Vector()
-  {
-    clear();
-    ::operator delete(data_);
-  }
-
-  template <typename T>
   Vector<T>& Vector<T>::operator=(const Vector& other)
   {
-    if (this != &other) {
-      Vector tmp(other);
-      swap(tmp);
+    if (this != std::addressof(other)) {
+      Vector<T> temp(other);
+      std::swap(data_, temp.data_);
+      std::swap(size_, temp.size_);
+      std::swap(capacity_, temp.capacity_);
     }
     return *this;
   }
@@ -99,13 +94,12 @@ namespace pozdeev {
   template <typename T>
   Vector<T>& Vector<T>::operator=(Vector&& other) noexcept
   {
-    if (this != &other) {
+    if (this != std::addressof(other)) {
       clear();
       ::operator delete(data_);
       data_ = other.data_;
       size_ = other.size_;
       capacity_ = other.capacity_;
-
       other.data_ = nullptr;
       other.size_ = 0;
       other.capacity_ = 0;
@@ -117,7 +111,7 @@ namespace pozdeev {
   void Vector<T>::pushBack(const T& value)
   {
     if (size_ == capacity_) {
-      reserve(capacity_ == 0 ? 1 : capacity_ * 2);
+      reallocate(capacity_ == 0 ? 1 : capacity_ * 2);
     }
     new (data_ + size_) T(value);
     ++size_;
@@ -127,26 +121,35 @@ namespace pozdeev {
   void Vector<T>::pushBack(T&& value)
   {
     if (size_ == capacity_) {
-      reserve(capacity_ == 0 ? 1 : capacity_ * 2);
+      reallocate(capacity_ == 0 ? 1 : capacity_ * 2);
     }
     new (data_ + size_) T(std::move(value));
     ++size_;
   }
 
   template <typename T>
-  size_t Vector<T>::getSize() const noexcept
+  void Vector<T>::popBack()
+  {
+    if (size_ > 0) {
+      --size_;
+      data_[size_].~T();
+    }
+  }
+
+  template <typename T>
+  size_t Vector<T>::getSize() const
   {
     return size_;
   }
 
   template <typename T>
-  bool Vector<T>::isEmpty() const noexcept
+  bool Vector<T>::isEmpty() const
   {
     return size_ == 0;
   }
 
   template <typename T>
-  void Vector<T>::clear() noexcept
+  void Vector<T>::clear()
   {
     for (size_t i = 0; i < size_; ++i) {
       data_[i].~T();
@@ -167,62 +170,65 @@ namespace pozdeev {
   }
 
   template <typename T>
-  void Vector<T>::swap(Vector& other) noexcept
-  {
-    std::swap(data_, other.data_);
-    std::swap(size_, other.size_);
-    std::swap(capacity_, other.capacity_);
-  }
-
-  template <typename T>
-  T* Vector<T>::begin() noexcept
+  T* Vector<T>::begin()
   {
     return data_;
   }
 
   template <typename T>
-  const T* Vector<T>::begin() const noexcept
+  T* Vector<T>::end()
+  {
+    return data_ + size_;
+  }
+
+  template <typename T>
+  const T* Vector<T>::begin() const
   {
     return data_;
   }
 
   template <typename T>
-  T* Vector<T>::end() noexcept
+  const T* Vector<T>::end() const
   {
     return data_ + size_;
   }
 
   template <typename T>
-  const T* Vector<T>::end() const noexcept
+  void Vector<T>::reallocate(size_t newCapacity)
   {
-    return data_ + size_;
-  }
-
-  template <typename T>
-  void Vector<T>::reserve(size_t newCap)
-  {
-    if (newCap <= capacity_) {
-      return;
+    T* newData = static_cast<T*>(::operator new(newCapacity * sizeof(T)));
+    for (size_t i = 0; i < size_; ++i) {
+      new (newData + i) T(std::move(data_[i]));
+      data_[i].~T();
     }
-    T* newData = static_cast<T*>(::operator new(newCap * sizeof(T)));
-    size_t constructed = 0;
-    try {
-      for (; constructed < size_; ++constructed) {
-        new (newData + constructed) T(std::move(data_[constructed]));
-      }
-    } catch (...) {
-      for (size_t j = 0; j < constructed; ++j) {
-        newData[j].~T();
-      }
-      ::operator delete(newData);
-      throw;
-    }
-
-    clear();
     ::operator delete(data_);
     data_ = newData;
-    size_ = constructed;
-    capacity_ = newCap;
+    capacity_ = newCapacity;
+  }
+
+  template <typename Iterator, typename Comparator>
+  void quickSort(Iterator first, Iterator last, Comparator comp)
+  {
+    if (last - first > 1) {
+      Iterator left = first;
+      Iterator right = last - 1;
+      auto pivot = *(first + (last - first) / 2);
+      while (left <= right) {
+        while (comp(*left, pivot)) {
+          ++left;
+        }
+        while (comp(pivot, *right)) {
+          --right;
+        }
+        if (left <= right) {
+          std::swap(*left, *right);
+          ++left;
+          --right;
+        }
+      }
+      quickSort(first, right + 1, comp);
+      quickSort(left, last, comp);
+    }
   }
 
 }
