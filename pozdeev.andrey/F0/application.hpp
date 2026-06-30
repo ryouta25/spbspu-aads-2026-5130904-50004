@@ -5,29 +5,36 @@
 #include "scenario.hpp"
 
 #include <string>
-#include <sstream>
 
 namespace pozdeev {
 
   class Application {
   public:
-    Application() = default;
+    Application();
     void run();
 
   private:
     AvlTree<std::string, Scenario> database_;
+    bool isRunning_;
+
+    using CommandHandler = void (Application::*)(const std::string&);
+    AvlTree<std::string, CommandHandler> handlers_;
 
     void processCommand(const std::string& commandLine);
-    void handleAddScenario(std::istringstream& stream);
-    void handleAddAction(std::istringstream& stream);
-    void handleFind(std::istringstream& stream) const;
-    void handleList() const;
-    void handleSimulate(std::istringstream& stream) const;
-    void handleAnalyze(std::istringstream& stream) const;
-    void handleCompare(std::istringstream& stream) const;
-    void handleBottleneck() const;
-    void handleStats() const;
-    void handleClear();
+    std::string getToken(const std::string& line, size_t& pos) const;
+    double getDoubleToken(const std::string& line, size_t& pos) const;
+
+    void handleAddScenario(const std::string& args);
+    void handleAddAction(const std::string& args);
+    void handleFind(const std::string& args);
+    void handleList(const std::string& args);
+    void handleSimulate(const std::string& args);
+    void handleAnalyze(const std::string& args);
+    void handleCompare(const std::string& args);
+    void handleBottleneck(const std::string& args);
+    void handleStats(const std::string& args);
+    void handleClear(const std::string& args);
+    void handleExit(const std::string& args);
   };
 
 }
