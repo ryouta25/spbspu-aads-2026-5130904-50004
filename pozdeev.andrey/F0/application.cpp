@@ -4,153 +4,247 @@
 #include <iomanip>
 #include <stdexcept>
 
-void pozdeev::Application::run()
-{
-  std::string line;
-  while (std::getline(std::cin, line)) {
-    if (line.empty()) {
-      continue;
+namespace pozdeev {
+
+  Application::Application() :
+    isRunning_(true)
+  {
+    handlers_.insert("add_scenario", &Application::handleAddScenario);
+    handlers_.insert("add_action", &Application::handleAddAction);
+    handlers_.insert("find", &Application::handleFind);
+    handlers_.insert("list", &Application::handleList);
+    handlers_.insert("simulate", &Application::handleSimulate);
+    handlers_.insert("analyze", &Application::handleAnalyze);
+    handlers_.insert("compare", &Application::handleCompare);
+    handlers_.insert("bottleneck", &Application::handleBottleneck);
+    handlers_.insert("stats", &Application::handleStats);
+    handlers_.insert("clear", &Application::handleClear);
+    handlers_.insert("exit", &Application::handleExit);
+  }
+
+  void Application::run()
+  {
+    std::string line;
+    while (isRunning_ && std::getline(std::cin, line)) {
+      if (line.empty()) {
+        continue;
+      }
+      try {
+        processCommand(line);
+      } catch (const std::invalid_argument& e) {
+        std::cout << e.what() << "\n";
+      }
     }
-    processCommand(line);
   }
-}
 
-void pozdeev::Application::processCommand(const std::string& commandLine)
-{
-  std::istringstream stream(commandLine);
-  std::string command;
-  stream >> command;
-
-  if (command == "add_scenario") {
-    handleAddScenario(stream);
-  } else if (command == "add_action") {
-    handleAddAction(stream);
-  } else if (command == "find") {
-    handleFind(stream);
-  } else if (command == "list") {
-    handleList();
-  } else if (command == "simulate") {
-    handleSimulate(stream);
-  } else if (command == "analyze") {
-    handleAnalyze(stream);
-  } else if (command == "compare") {
-    handleCompare(stream);
-  } else if (command == "bottleneck") {
-    handleBottleneck();
-  } else if (command == "stats") {
-    handleStats();
-  } else if (command == "clear") {
-    handleClear();
-  } else if (command == "exit") {
-    std::cout << "(Программа завершает работу)\n";
-    exit(0);
-  } else {
-    throw std::invalid_argument("<UNKNOWN COMMAND>");
+  std::string Application::getToken(const std::string& line, size_t& pos) const
+  {
+    while (pos < line.length() && line[pos] == ' ') {
+      ++pos;
+    }
+    if (pos >= line.length()) {
+      return "";
+    }
+    size_t start = pos;
+    while (pos < line.length() && line[pos] != ' ') {
+      ++pos;
+    }
+    return line.substr(start, pos - start);
   }
-}
 
-void pozdeev::Application::handleAddScenario(std::istringstream& stream)
-{
-  std::string id, match, team, map, type;
-  if (stream >> id >> match >> team >> map >> type) {
+  double Application::getDoubleToken(const std::string& line, size_t& pos) const
+  {
+    std::string token = getToken(line, pos);
+    if (token.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+    return std::stod(token);
+  }
+
+  void Application::processCommand(const std::string& commandLine)
+  {
+    size_t pos = 0;
+    std::string command = getToken(commandLine, pos);
+
+    auto it = handlers_.find(command);
+    if (it != handlers_.end()) {
+      CommandHandler handler = *it;
+      (this->*handler)(commandLine.substr(pos));
+    } else {
+      throw std::invalid_argument("<UNKNOWN COMMAND>");
+    }
+  }
+
+  void Application::handleAddScenario(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id = getToken(args, pos);
+    std::string match = getToken(args, pos);
+    std::string team = getToken(args, pos);
+    std::string map = getToken(args, pos);
+    std::string type = getToken(args, pos);
+
+    if (id.empty() || match.empty() || team.empty() || map.empty() || type.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
     Scenario newScenario(id, match, team, map, type);
     if (database_.insert(id, newScenario)) {
       std::cout << "OK\n";
     } else {
-      std::cout << "<INVALID COMMAND: SCENARIO '" << id << "' ALREADY EXISTS>\n";
+      throw std::invalid_argument("<INVALID COMMAND: SCENARIO '" + id + "' ALREADY EXISTS>");
     }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
-}
 
-void pozdeev::Application::handleAddAction(std::istringstream& stream)
-{
-  std::string id, player, type, target;
-  double time = 0.0;
-  double prob = 0.0;
+  void Application::handleAddAction(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id = getToken(args, pos);
+    double time = getDoubleToken(args, pos);
+    std::string player = getToken(args, pos);
+    std::string type = getToken(args, pos);
+    std::string target = getToken(args, pos);
+    double prob = getDoubleToken(args, pos);
 
-  if (stream >> id >> time >> player >> type >> target >> prob) {
-    Scenario* scenario = database_.find(id);
-    if (scenario) {
+    if (id.empty() || player.empty() || type.empty() || target.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
+    auto it = database_.find(id);
+    if (it != database_.end()) {
       action_t action{time, player, type, target, prob};
-      scenario->addAction(action);
+      it->addAction(action);
       std::cout << "OK\n";
     } else {
-      std::cout << "<SCENARIO NOT FOUND>\n";
+      throw std::invalid_argument("<SCENARIO NOT FOUND>");
     }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
-}
 
-void pozdeev::Application::handleFind(std::istringstream& stream) const
-{
-  std::string id;
-  if (stream >> id) {
-    Scenario* scenario = database_.find(id);
-    if (scenario) {
+  void Application::handleFind(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id = getToken(args, pos);
+
+    if (id.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
+    auto it = database_.find(id);
+    if (it != database_.end()) {
       std::cout << "FOUND [" << id << "]:\n";
-      std::cout << "Match: " << scenario->getMatch() << " | Team: " << scenario->getTeam()
-                << " | Map: " << scenario->getMap() << " | Type: " << scenario->getType() << "\n";
-      std::cout << "Actions count: " << scenario->getActions().getSize() << "\n";
+      std::cout << *it << "\n";
+      std::cout << "Actions count: " << it->getActions().getSize() << "\n";
     } else {
-      std::cout << "<NOT FOUND>\n";
+      throw std::invalid_argument("<NOT FOUND>");
     }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
-}
 
-void pozdeev::Application::handleList() const
-{
-  Vector<const Scenario*> scenarios;
-  database_.inOrderTraversal(scenarios);
-  for (const Scenario* s : scenarios) {
-    std::cout << "[" << s->getId() << "]: " << s->getTeam() << " - "
-              << s->getMap() << " - " << s->getType() << " (Match: " << s->getMatch() << ")\n";
+  void Application::handleList(const std::string&)
+  {
+    for (auto it = database_.begin(); it != database_.end(); ++it) {
+      std::cout << "[" << it.key() << "]: " << it->getTeam() << " - "
+                << it->getMap() << " - " << it->getType() << " (Match: " << it->getMatch() << ")\n";
+    }
   }
-}
 
-void pozdeev::Application::handleSimulate(std::istringstream& stream) const
-{
-  std::string id;
-  if (stream >> id) {
-    Scenario* scenario = database_.find(id);
-    if (scenario) {
-      scenario->printSimulation();
+  void Application::handleSimulate(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id = getToken(args, pos);
+
+    if (id.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
+    auto it = database_.find(id);
+    if (it != database_.end()) {
+      std::cout << "--- SIMULATION: " << id << " ---\n";
+      std::cout << "Match: " << it->getMatch() << " | Team: " << it->getTeam() << "\n";
+
+      const Vector<action_t>& acts = it->getActions();
+      for (size_t i = 0; i < acts.getSize(); ++i) {
+        double remainingTime = 120.0 - acts[i].time;
+        if (remainingTime < 0.0) {
+          remainingTime = 0.0;
+        }
+        int mins = static_cast<int>(remainingTime) / 60;
+        double secs = remainingTime - (mins * 60.0);
+
+        std::cout << "[" << mins << ":";
+        if (secs < 10.0) {
+          std::cout << "0";
+        }
+        std::cout << std::fixed << std::setprecision(1) << secs << "] "
+                  << acts[i].player << ": " << acts[i].type << " -> " << acts[i].target
+                  << " (Prob: " << (acts[i].prob * 100.0) << "%)\n";
+      }
+      std::cout << "Simulation complete.\n";
     } else {
-      std::cout << "<SCENARIO NOT FOUND>\n";
+      throw std::invalid_argument("<SCENARIO NOT FOUND>");
     }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
-}
 
-void pozdeev::Application::handleAnalyze(std::istringstream& stream) const
-{
-  std::string id;
-  if (stream >> id) {
-    Scenario* scenario = database_.find(id);
-    if (scenario) {
-      scenario->analyzeWeakness();
+  void Application::handleAnalyze(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id = getToken(args, pos);
+
+    if (id.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
+    auto it = database_.find(id);
+    if (it != database_.end()) {
+      AnalysisResult res = it->analyzeWeakness();
+      std::cout << "ANALYSIS RESULT [" << id << "]:\n";
+      if (!res.hasActions) {
+        std::cout << "No actions to analyze.\n";
+        return;
+      }
+
+      std::cout << "Total Win Probability: " << std::fixed << std::setprecision(1)
+                << (res.totalProb * 100.0) << "%\n";
+
+      double remainingTime = 120.0 - res.weakTime;
+      if (remainingTime < 0.0) {
+        remainingTime = 0.0;
+      }
+      int mins = static_cast<int>(remainingTime) / 60;
+      double secs = remainingTime - (mins * 60.0);
+
+      std::cout << "Critical Weakness: Action at " << mins << ":";
+      if (secs < 10.0) {
+        std::cout << "0";
+      }
+      std::cout << std::fixed << std::setprecision(1) << secs << " ("
+                << res.weakPlayer << " " << res.weakType << ")\n";
+
+      std::cout << "Impact: Failure reduces win chance to "
+                << (res.impactProb * 100.0) << "%\n";
+      std::cout << "Recommendation: Ensure high success rate for this action.\n";
+
     } else {
-      std::cout << "<SCENARIO NOT FOUND>\n";
+      throw std::invalid_argument("<SCENARIO NOT FOUND>");
     }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
   }
-}
 
-void pozdeev::Application::handleCompare(std::istringstream& stream) const
-{
-  std::string id1, id2;
-  if (stream >> id1 >> id2) {
-    Scenario* s1 = database_.find(id1);
-    Scenario* s2 = database_.find(id2);
-    if (s1 && s2) {
-      const double p1 = s1->calculateWinProbability() * 100.0;
-      const double p2 = s2->calculateWinProbability() * 100.0;
+  void Application::handleCompare(const std::string& args)
+  {
+    size_t pos = 0;
+    std::string id1 = getToken(args, pos);
+    std::string id2 = getToken(args, pos);
+
+    if (id1.empty() || id2.empty()) {
+      throw std::invalid_argument("<INVALID ARGUMENTS>");
+    }
+
+    auto it1 = database_.find(id1);
+    auto it2 = database_.find(id2);
+
+    if (it1 != database_.end() && it2 != database_.end()) {
+      const double p1 = it1->calculateWinProbability() * 100.0;
+      const double p2 = it2->calculateWinProbability() * 100.0;
+
       std::cout << "COMPARISON:\n";
       std::cout << "1. [" << id1 << "]: Win Prob " << std::fixed << std::setprecision(1) << p1 << "%\n";
       std::cout << "2. [" << id2 << "]: Win Prob " << p2 << "%\n";
@@ -163,68 +257,74 @@ void pozdeev::Application::handleCompare(std::istringstream& stream) const
         std::cout << "Efficiency is equal.\n";
       }
     } else {
-      std::cout << "<ONE OR BOTH SCENARIOS NOT FOUND>\n";
-    }
-  } else {
-    throw std::invalid_argument("<INVALID ARGUMENTS>");
-  }
-}
-
-void pozdeev::Application::handleBottleneck() const
-{
-  Vector<const Scenario*> scenarios;
-  database_.inOrderTraversal(scenarios);
-  if (scenarios.isEmpty()) {
-    std::cout << "DATABASE IS EMPTY\n";
-    return;
-  }
-
-  const Scenario* weakest = scenarios[0];
-  double minProb = weakest->calculateWinProbability();
-
-  for (size_t i = 1; i < scenarios.getSize(); ++i) {
-    const double prob = scenarios[i]->calculateWinProbability();
-    if (prob < minProb) {
-      minProb = prob;
-      weakest = scenarios[i];
+      throw std::invalid_argument("<ONE OR BOTH SCENARIOS NOT FOUND>");
     }
   }
 
-  std::cout << "GLOBAL BOTTLENECK DETECTED:\n";
-  std::cout << "Scenario: [" << weakest->getId() << "]\n";
-  weakest->analyzeWeakness();
-}
+  void Application::handleBottleneck(const std::string&)
+  {
+    if (database_.getSize() == 0) {
+      std::cout << "DATABASE IS EMPTY\n";
+      return;
+    }
 
-void pozdeev::Application::handleStats() const
-{
-  Vector<const Scenario*> scenarios;
-  database_.inOrderTraversal(scenarios);
+    auto it = database_.begin();
+    std::string weakestId = it.key();
+    double minProb = it->calculateWinProbability();
+    ++it;
 
-  size_t totalActions = 0;
-  double maxProb = 0.0;
-  double minProb = 1.0;
+    for (; it != database_.end(); ++it) {
+      const double prob = it->calculateWinProbability();
+      if (prob < minProb) {
+        minProb = prob;
+        weakestId = it.key();
+      }
+    }
 
-  for (const Scenario* s : scenarios) {
-    totalActions += s->getActions().getSize();
-    const double prob = s->calculateWinProbability();
-    if (prob > maxProb) maxProb = prob;
-    if (prob < minProb) minProb = prob;
+    std::cout << "GLOBAL BOTTLENECK DETECTED:\n";
+    std::cout << "Scenario: [" << weakestId << "]\n";
+    handleAnalyze(weakestId);
   }
 
-  const double avgActions = scenarios.isEmpty() ? 0.0 : static_cast<double>(totalActions) / scenarios.getSize();
-  if (scenarios.isEmpty()) {
-    minProb = 0.0;
+  void Application::handleStats(const std::string&)
+  {
+    size_t totalActions = 0;
+    double maxProb = 0.0;
+    double minProb = 1.0;
+
+    for (auto it = database_.begin(); it != database_.end(); ++it) {
+      totalActions += it->getActions().getSize();
+      const double prob = it->calculateWinProbability();
+      if (prob > maxProb) {
+        maxProb = prob;
+      }
+      if (prob < minProb) {
+        minProb = prob;
+      }
+    }
+
+    const double avgActions = database_.getSize() == 0 ? 0.0 : static_cast<double>(totalActions) / database_.getSize();
+    if (database_.getSize() == 0) {
+      minProb = 0.0;
+    }
+
+    std::cout << "TREE HEIGHT: " << database_.getHeight()
+              << " | TOTAL SCENARIOS: " << database_.getSize() << "\n";
+    std::cout << "Average Actions: " << std::fixed << std::setprecision(1) << avgActions
+              << " | Max Win Rate: " << (maxProb * 100.0)
+              << "% | Min Win Rate: " << (minProb * 100.0) << "%\n";
   }
 
-  std::cout << "TREE HEIGHT: " << database_.getHeight()
-            << " | TOTAL SCENARIOS: " << database_.getSize() << "\n";
-  std::cout << "Average Actions: " << std::fixed << std::setprecision(1) << avgActions
-            << " | Max Win Rate: " << (maxProb * 100.0)
-            << "% | Min Win Rate: " << (minProb * 100.0) << "%\n";
-}
+  void Application::handleClear(const std::string&)
+  {
+    database_.clear();
+    std::cout << "ALL SCENARIOS CLEARED\n";
+  }
 
-void pozdeev::Application::handleClear()
-{
-  database_.clear();
-  std::cout << "ALL SCENARIOS CLEARED\n";
+  void Application::handleExit(const std::string&)
+  {
+    std::cout << "(Программа завершает работу)\n";
+    isRunning_ = false;
+  }
+
 }
